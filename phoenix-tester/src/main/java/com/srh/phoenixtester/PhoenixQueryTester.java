@@ -12,6 +12,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
 
+import org.apache.phoenix.coprocessor.MetaDataProtocol;
 import org.apache.phoenix.monitoring.GlobalMetric;
 import org.apache.phoenix.query.QueryServices;
 import org.apache.phoenix.util.PhoenixRuntime;
@@ -38,7 +39,7 @@ public class PhoenixQueryTester
         String fileLocation = args[0];
         PhoenixQueryTester pqt = new PhoenixQueryTester();
         Properties props = pqt.loadPropertiesFile(fileLocation);
-        
+        LOGGER.info("Driver Version:"+MetaDataProtocol.PHOENIX_MAJOR_VERSION+"."+MetaDataProtocol.PHOENIX_MINOR_VERSION +"."+MetaDataProtocol.PHOENIX_PATCH_NUMBER);
         pqt.executeExplainQuery(props);
         pqt.executeQueryToFindMetrics(props);
         		
@@ -66,7 +67,14 @@ public class PhoenixQueryTester
         LOGGER.info("Query: "+ query);
     	LOGGER.info("Number of Records:"+numberOfrecords);
 
-    	// read metrics
+/*    	Collection<Metric> metircs = PhoenixRuntime.getInternalPhoenixMetrics();
+    	StringBuffer sb = new StringBuffer();
+    	for (Metric metric : metircs) {
+			sb.append("{Name:"+metric.getName()+","+metric.getCurrentMetricState()+"}");
+			sb.append('\n');
+		}
+    	LOGGER.info(sb.toString());
+*/    	// read metrics
          overAllQueryMetrics = PhoenixRuntime.getOverAllReadRequestMetrics(rs);
          requestReadMetrics = PhoenixRuntime.getRequestReadMetrics(rs);
         
@@ -142,12 +150,16 @@ public class PhoenixQueryTester
 			columnNames += ( rsMetadata.getColumnName(i)+"|");
 		}
         LOGGER.info(columnNames);
+        LOGGER.info("Query: "+ query);
+
+        StringBuffer sb = new StringBuffer();
         while(rs.next()){
         	for (int i = 1; i <= colCount; i++) {
-        		LOGGER.info(""+rs.getObject(i));	
+        		sb.append(""+rs.getObject(i));
 			}
+        	sb.append('\n');
         }
-        LOGGER.info("Query: "+ query);
+        LOGGER.info(sb.toString());
     	rs.close();
     	statment.close();
     	con.close();
