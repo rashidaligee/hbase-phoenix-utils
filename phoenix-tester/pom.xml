@@ -4,15 +4,18 @@
   <groupId>com.srh.phoenixtester</groupId>
   <artifactId>phoenix-tester</artifactId>
   <packaging>jar</packaging>
-  <version>1.0-SNAPSHOT</version>
+  <version>${phoenix-version}</version>
   <name>phoenix-tester</name>
   <url>http://maven.apache.org</url>
+<properties>
+<phoenix-version>4.7.0.2.6.1.17-1</phoenix-version>
+</properties>
   <dependencies>
 <!-- https://mvnrepository.com/artifact/org.apache.phoenix/phoenix-core -->
 	<dependency>
     	<groupId>org.apache.phoenix</groupId>
     	<artifactId>phoenix-core</artifactId>
-    	<version>4.7.0-HBase-1.1</version>
+    	<version>${phoenix-version}</version>
 	</dependency>
     <dependency>
       <groupId>junit</groupId>

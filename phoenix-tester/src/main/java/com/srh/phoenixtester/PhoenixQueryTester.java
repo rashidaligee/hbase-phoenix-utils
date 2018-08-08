@@ -12,6 +12,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
 
+import org.apache.phoenix.coprocessor.MetaDataProtocol;
 import org.apache.phoenix.monitoring.GlobalMetric;
 import org.apache.phoenix.query.QueryServices;
 import org.apache.phoenix.util.PhoenixRuntime;
@@ -24,6 +25,7 @@ public class PhoenixQueryTester
 {
 	private static String KEY_JDBC_URL = "jdbc_url";
 	private static String KEY_CONN_PROPS = "conn_props";
+	private static String KEY_PRINT_DATA = "FALSE";
 	private static String KEY_QUERY = "query";
 	private static Logger LOGGER = Logger.getLogger(PhoenixQueryTester.class.getName());
 	
@@ -38,41 +40,70 @@ public class PhoenixQueryTester
         String fileLocation = args[0];
         PhoenixQueryTester pqt = new PhoenixQueryTester();
         Properties props = pqt.loadPropertiesFile(fileLocation);
-        
-        pqt.executeExplainQuery(props);
-        pqt.executeQueryToFindMetrics(props);
+	LOGGER.info("Phoenix version:"+MetaDataProtocol.PHOENIX_MAJOR_VERSION+"."+MetaDataProtocol.PHOENIX_MINOR_VERSION+"."+MetaDataProtocol.PHOENIX_PATCH_NUMBER);        
+//        pqt.executeExplainQuery(props);
+        for(int i =1; i< 6; i++){
+		LOGGER.info("Query Execution Starts #"+i);
+        	pqt.executeQueryToFindMetrics(props);
+		LOGGER.info("Query Execution Ends #"+i);
+	}
         		
     }
     
     private void executeQueryToFindMetrics(Properties props) throws Exception {
     	Map<String, Long> overAllQueryMetrics = null;
         Map<String, Map<String, Long>> requestReadMetrics = null;
-        
+        long queryStartTime = System.currentTimeMillis(); 
     	Connection con = getConnection(props);
+        LOGGER.info("Time To Get Connection:"+(System.currentTimeMillis()-queryStartTime));
         String query = props.getProperty(KEY_QUERY);
         
+	long queryExecutionStartTime = System.currentTimeMillis();
         PreparedStatement statment = con.prepareStatement(query);
+
         ResultSet rs = statment.executeQuery();
+        LOGGER.info("QueryExecutionTime = "+(System.currentTimeMillis()-queryExecutionStartTime));
         int numberOfrecords = 0;
         boolean firstRecordRetrieved = false;
-        LOGGER.info("Start Time: "+System.currentTimeMillis());
+	ResultSetMetaData rsMetadata = rs.getMetaData();
+	int colCount = rsMetadata.getColumnCount();
+	
+	long rsProcessingStartTime = System.currentTimeMillis();
+	boolean printData = (props.getProperty(KEY_PRINT_DATA) != null && props.getProperty(KEY_PRINT_DATA).equalsIgnoreCase("TRUE"));
+	for(int i = 1; i<= colCount; i++){
+		if(i>1){
+			System.out.print(",");
+		}
+		System.out.print(rsMetadata.getColumnName(i));
+	}
+
+	System.out.println("");
+
         while(rs.next()){
         	numberOfrecords++;
-        	if(!firstRecordRetrieved){
-                LOGGER.info("First Record Find Time: "+System.currentTimeMillis());
-                firstRecordRetrieved = true;
-        	}
+		if(printData){ 
+			for(int i=1; i<= colCount; i++){
+				if(i >1) {
+					System.out.print(",");
+					
+				}
+				System.out.print(rs.getString(i));
+			}
+			System.out.println("");
+		}
         }
+	LOGGER.info("Resultset Processing Time:"+(System.currentTimeMillis()-rsProcessingStartTime));
+        LOGGER.info("Total Query Time ="+(System.currentTimeMillis()-queryStartTime));        
         LOGGER.info("Query: "+ query);
     	LOGGER.info("Number of Records:"+numberOfrecords);
 
     	// read metrics
-         overAllQueryMetrics = PhoenixRuntime.getOverAllReadRequestMetrics(rs);
-         requestReadMetrics = PhoenixRuntime.getRequestReadMetrics(rs);
+//         overAllQueryMetrics = PhoenixRuntime.getOverAllReadRequestMetrics(rs);
+//         requestReadMetrics = PhoenixRuntime.getRequestReadMetrics(rs);
         
-        Set<String> requestReadMetricskeys = requestReadMetrics.keySet();
-        LOGGER.info("Printing Read Request Metrics....");
-        for (String key : requestReadMetricskeys) {
+//        Set<String> requestReadMetricskeys = requestReadMetrics.keySet();
+//        LOGGER.info("Printing Read Request Metrics....");
+/*        for (String key : requestReadMetricskeys) {
         	printMap(requestReadMetrics.get(key));
 		}
         
@@ -106,10 +137,11 @@ public class PhoenixQueryTester
 			sb.append("\n");
 		}
         LOGGER.info(sb.toString());
+*/
     	rs.close();
     	statment.close();
     	con.close();
-
+        LOGGER.info("Time closing connection:"+(System.currentTimeMillis()-queryStartTime)); 
 	}
 
     private void printMap(Map<String, Long> mapToPrint){
@@ -142,13 +174,17 @@ public class PhoenixQueryTester
 			columnNames += ( rsMetadata.getColumnName(i)+"|");
 		}
         LOGGER.info(columnNames);
+        LOGGER.info("Query: "+ query);
+	StringBuffer sb = new StringBuffer();
         while(rs.next()){
         	for (int i = 1; i <= colCount; i++) {
-        		LOGGER.info(""+rs.getObject(i));	
+			sb.append(""+rs.getObject(i));
 			}
+	sb.append('\n');
         }
-        LOGGER.info("Query: "+ query);
+	LOGGER.info(sb.toString());
     	rs.close();
+
     	statment.close();
     	con.close();
  	
